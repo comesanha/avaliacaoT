@@ -29,20 +29,24 @@
 #include "queue.h"
 #include "comandoAr.h"
 
+UartCac uartCac;
+
+void SendUint32_tAsChar(uint32_t inteiro);
+
 void main(void)
 {
     /*CONFIGURANDO O CLOCK DO SISTEMA*/
     SysCtlClockSet(SYSCTL_SYSDIV_2_5|SYSCTL_USE_PLL|SYSCTL_XTAL_16MHZ|SYSCTL_OSC_MAIN|SYSCTL_OSC_EXT32);
 
     /* CRIANDO OBJETOS */
-    UartCac uartCac;
+
     DigPort botoesCac;
     Temperatura MedidaCac;
     Queue log;
     ComandoAr cmndLigaDesliga[1000];
 
 
-    /*CONFIGURAÇÃO DO RTC*/
+    /*CONFIGURAÃ‡ÃƒO DO RTC*/
     HibernateEnableExpClk(SysCtlClockGet());
     HibernateRTCEnable();
     //HibernateRTCTrimSet(0x7FFF);
@@ -54,18 +58,19 @@ void main(void)
     uartCac.SetSerialParameter();
     uartCac.OpenSerial();
 
-    /* DECLARANDO VARIÁVEIS */
+    /* DECLARANDO VARIÃVEIS */
 
-    char R[2] = {0};// Buffer de recepção
-    char T[9] = {0};// Buffer de transmissão
+    char R[2] = {0};// Buffer de recepÃ§Ã£o
+    char T[9] = {0};// Buffer de transmissÃ£o
     uint32_t tempoI[1000], tempoF[1000];
     int index;
     uint8_t botaoaux;
     uint8_t tempAjst;
     float tempAtual1, tempAtual2;
     char estados = 'a'; // Inicia em E-spra
-    char flagTemp = 'F';// Sem evento de variação de tenperatura externa
-    char flagBot = '0'; // Sem evento de botões
+    char flagTemp = 'F';// Sem evento de variaÃ§Ã£o de tenperatura externa
+    char flagBot = '0'; // Sem evento de botÃµes
+    char tempCmd;
     uint32_t tempoLigado, tempoValorF, tempoValorI, contador;
     uint32_t contCmnd = 0;
     tempoLigado = 0;
@@ -75,15 +80,15 @@ void main(void)
     /* LOOP INFINITO DO SISTEMA EMBARCADO*/
     while(1)
     {
-        // realização da medida do valor do sensor de temperatura
+        // realizaÃ§Ã£o da medida do valor do sensor de temperatura
         MedidaCac.readSensor();
 
-        //Execução dos estados do CAc
+        //ExecuÃ§Ã£o dos estados do CAc
         switch(estados)
         {
             case 'a'://E-spra
             {
-                botaoaux = botoesCac.GetBotoes();// captura estado de botões função ligar aparelho
+                botaoaux = botoesCac.GetBotoes();// captura estado de botÃµes funÃ§Ã£o ligar aparelho
 
                 //bot1 e bot2
                 if(botaoaux == 0x00)
@@ -101,7 +106,7 @@ void main(void)
                 }else
 
                 //Se houve comando enviado pela serial
-                if(UARTCharsAvail(UART0_BASE))// Verifica se há dado no Rx do UART
+                if(UARTCharsAvail(UART0_BASE))// Verifica se hÃ¡ dado no Rx do UART
                 {
                     estados = 'c';// estado E-cmnc
                 }else
@@ -113,12 +118,12 @@ void main(void)
             }
             case 'l'://E-cntrl
             {
-                /* Ainda faltando implementar Tensorflow relacionando entradar e saídas */
+                /* Ainda faltando implementar Tensorflow relacionando entradar e saÃ­das */
 
                 // Sem entrada -> permanece em E-cntrl
                 GPIOPinWrite(GPIO_PORTF_BASE, GPIO_PIN_3|GPIO_PIN_2|GPIO_PIN_1, 0);// Apaga todos os LEDs
 
-                tempAjst = botoesCac.GetBotoes();// Leitura de estado dos botões de ajuste
+                tempAjst = botoesCac.GetBotoes();// Leitura de estado dos botÃµes de ajuste
 
                 contador ++;
 
@@ -156,12 +161,12 @@ void main(void)
                 }else
 
                 // bot 1 ou bot2 ou VariaTempEx -> permanece em E-spra
-                if(tempAjst == 0x10 | tempAjst == 0x01 && (tempAtual1 != tempAtual2))// Havendo algura aleteração nas entradas
+                if(tempAjst == 0x10 | tempAjst == 0x01 && (tempAtual1 != tempAtual2))// Havendo algura aleteraÃ§Ã£o nas entradas
                 {
                     estados = 'd';// estado E-cmnd
                 }else
 
-                if(UARTCharsAvail(UART0_BASE))// Verifica se há dado no Rx do UART
+                if(UARTCharsAvail(UART0_BASE))// Verifica se hÃ¡ dado no Rx do UART
                 {
                     estados = 'c';// estado E-cmnc
                 }else
@@ -171,11 +176,11 @@ void main(void)
             }
             case 'd'://E-cnmd
             {
-                if(tempAjst == 0x10)// Botão reduz temperatura pressionado
+                if(tempAjst == 0x10)// BotÃ£o reduz temperatura pressionado
                 {
-                    flagBot = 'R';// indica evento de redução de temperatura
+                    flagBot = 'R';// indica evento de reduÃ§Ã£o de temperatura
 
-                    // Insere nó na última posição da fila com data e hora constantes
+                    // Insere nÃ³ na Ãºltima posiÃ§Ã£o da fila com data e hora constantes
                     log.insertAfterLast(1, flagTemp,  flagBot, 23, 3, 8, 17, 30, 34);
 
                     // Simula comando Bluetooth para o aparelho aumentar  temperatura
@@ -184,11 +189,11 @@ void main(void)
 
                     estados = 'l';// estado E-cntrl
                 }else
-                if(tempAjst == 0x01)// Botão aumenta temperatura pressionado
+                if(tempAjst == 0x01)// BotÃ£o aumenta temperatura pressionado
                 {
                     flagBot = 'A';// indica evento de aumento de temperatura
 
-                    // Insere nó na última posição da fila com data e hora constantes
+                    // Insere nÃ³ na Ãºltima posiÃ§Ã£o da fila com data e hora constantes
                     log.insertAfterLast(1, flagTemp,  flagBot, 22, 2, 8, 17, 30, 34);
 
                     // Simula comando Bluetooth para o aparelho reduzir  temperatura
@@ -201,7 +206,7 @@ void main(void)
                 {
                     flagTemp = 'T'; // indica evento de ajuste de temperatura devido temperatura externa
 
-                    // Insere nó na última posição da fila com data e hora constantes
+                    // Insere nÃ³ na Ãºltima posiÃ§Ã£o da fila com data e hora constantes
                     log.insertAfterLast(1, flagTemp,  flagBot, 22, 3, 8, 17, 30, 34);
 
                     // Simula comando Bluetooth para o aparelho ajuste de temperatura de acordo com temperatura externa
@@ -210,7 +215,7 @@ void main(void)
 
                     estados = 'l';// estado E-cntrl
                 }else
-                if(UARTCharsAvail(UART0_BASE))// Verifica sehá dado no Rx do UART
+                if(UARTCharsAvail(UART0_BASE))// Verifica sehÃ¡ dado no Rx do UART
                 {
                     estados = 'c';// estado E-cmnc
                 }
@@ -227,41 +232,34 @@ void main(void)
                 {
                     for(quantidadeNos = 0; quantidadeNos < (log.countAll()); quantidadeNos++)
                     {
-                        // remove o primeiro nó da fila e retorna seus valores pata o buffer de transmissão
+                        // remove o primeiro nÃ³ da fila e retorna seus valores pata o buffer de transmissÃ£o
                         log.getRemoveFirst(T[0], T[1],T[2], T[3], T[4], T[5], T[6],T[7], T[8]);
 
-                        // transmite os dados do buffer de transmissão para o TX da Uart.
+                        // transmite os dados do buffer de transmissÃ£o para o TX da Uart.
                         for (index = 0; index < 9; index++)
                         {
                             uartCac.SerialWrite(T[index]);
-                            T[index] = 0;// Limpa o buffer de transmissão
+                            T[index] = 0;// Limpa o buffer de transmissÃ£o
                         }
                     }
 
                 }else
                 if(R[0] == 0x63)// caractere c
                 {
-//                    // Tempo do aparelho ligado com data constante
-//                    T[0] = tempoLigado;
-//                    T[1] = 22;// ano
-//                    T[2] = 02;// mês
-//                    T[3] = 7;// dia
-
-//                    // transmite os dados do buffer de transmissão para o TX da Uart.
-//                    for (index = 0; index < 4; index++)
-//                    {
-//                        uartCac.SerialWrite(T[index]);
-//                         T[index] = 0;// Limpa o buffer de transmissão
-//                    }
+                    SendUint32_tAsChar(tempoLigado);
                     index = 0;
-                    while(cmndLigaDesliga[index].getComando > '0')
+                    while(cmndLigaDesliga[index].getComando() > '0')
                     {
-                        uartCac.SerialWrite(tempoLigado);
-                        uartCac.SerialWrite(tempoF[index]);
-                        uartCac.SerialWrite(tempoI[index]);
-                        uartCac.SerialWrite(cmndLigaDesliga[index].getComando);
-                        uartCac.SerialWrite(cmndLigaDesliga[index].getDataHora);
-                        cmndLigaDesliga[index].setComando(0, 0, 0, 0, 0, 0, 0);// Limpa o buffer de transmissão
+                        char a, me, d, h, mi, s;
+                        tempCmd = cmndLigaDesliga[index].getComando();
+                        cmndLigaDesliga[index].getDataHora(a, me, d, h, mi, s);
+                        SendUint32_tAsChar(tempoF[index]);
+                        SendUint32_tAsChar(tempoI[index]);
+                        uartCac.SerialWrite(tempCmd);
+                        uartCac.SerialWrite(a);
+                        uartCac.SerialWrite(me);
+                        uartCac.SerialWrite(d);
+                        cmndLigaDesliga[index].setComando(0, 0, 0, 0, 0, 0, 0);// Limpa o buffer de transmissÃ£o
                         tempoF[index] = 0;
                         tempoI[index] = 0;
                         index++;
@@ -270,7 +268,7 @@ void main(void)
 
                 }
 
-                // Limpa o buffer de recepção
+                // Limpa o buffer de recepÃ§Ã£o
                 for(index = 0; index < sizeof(R); index++)
                 R[index] = 0;
 
@@ -279,4 +277,16 @@ void main(void)
             }
         }
     }
+}
+
+void SendUint32_tAsChar(uint32_t inteiro)
+{
+    char tempChar = (char)inteiro;
+    uartCac.SerialWrite(tempChar);
+    tempChar = (char)(inteiro >>8);
+    uartCac.SerialWrite(tempChar);
+    tempChar = (char)(inteiro >>8);
+    uartCac.SerialWrite(tempChar);
+    tempChar = (char)(inteiro >>8);
+    uartCac.SerialWrite(tempChar);
 }

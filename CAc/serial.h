@@ -11,8 +11,7 @@
 class Serial {
 
 public:
-    Serial();
-  ~Serial();
+ 
   virtual void OpenSerial() = 0;
   virtual void SetSerialParameter() = 0;
   virtual void SerialWrite(char &T) = 0;
